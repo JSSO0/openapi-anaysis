@@ -191,7 +191,7 @@ module.exports = configure(function (/* ctx */) {
       builder: {
         // https://www.electron.build/configuration/configuration
 
-        appId: 'change-log-api-ui'
+        appId: 'openapi-anaysis'
       }
     },
 

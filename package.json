@@ -1,8 +1,8 @@
 {
-  "name": "change-log-api-ui",
+  "name": "openapi-anaysis",
   "version": "0.0.1",
-  "description": "ChangeLog OpenAPI",
-  "productName": "ChangeLog OpenAPI",
+  "description": "openapi-anaysis",
+  "productName": "OpenAPI Analysis Tool",
   "author": "André Trindade <andre.trindade@sensedia.com>",
   "private": true,
   "scripts": {

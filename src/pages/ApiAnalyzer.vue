@@ -4,31 +4,58 @@
       <q-card-section class="row items-center q-pb-none">
         <div class="col">
           <div class="text-h6">Open Finance API Architect Tool</div>
-          <div class="text-subtitle2 text-grey-7">Complexity, Idempotency & Async Analysis</div>
+          <div class="text-subtitle2 text-grey-7">
+            Complexity, Idempotency & Async Analysis
+          </div>
         </div>
         <div class="col-auto">
-          <q-btn 
-            color="primary" 
-            icon="archive" 
-            label="Export CSV" 
-            @click="exportCSV" 
-            flat 
+          <q-btn
+            color="primary"
+            icon="archive"
+            label="Export CSV"
+            @click="exportCSV"
+            flat
             :disable="metrics.length === 0"
           />
         </div>
       </q-card-section>
 
       <q-card-section>
-        <q-file 
-          v-model="ymlFile" 
-          label="Upload openapi file (.yaml / .yml)" 
-          outlined 
-          dense
-          accept=".yaml, .yml"
-          @update:model-value="processFile"
-        >
-          <template v-slot:prepend><q-icon name="cloud_upload" /></template>
-        </q-file>
+        <div class="row q-col-gutter-md">
+          <div class="col-12 col-md-6">
+            <q-file
+              v-model="ymlFile"
+              label="Upload openapi file (.yaml / .yml)"
+              outlined
+              dense
+              accept=".yaml, .yml"
+              @update:model-value="processFile"
+            >
+              <template v-slot:prepend><q-icon name="cloud_upload" /></template>
+            </q-file>
+          </div>
+          <div class="col-12 col-md-6">
+            <q-input
+              v-model="ymlUrl"
+              label="Ou cole a URL do arquivo OpenAPI"
+              outlined
+              dense
+              @keyup.enter="loadFromUrl"
+            >
+              <template v-slot:prepend><q-icon name="link" /></template>
+              <template v-slot:append>
+                <q-btn
+                  icon="download"
+                  flat
+                  dense
+                  @click="loadFromUrl"
+                  :disable="!ymlUrl"
+                  :loading="isLoadingUrl"
+                />
+              </template>
+            </q-input>
+          </div>
+        </div>
       </q-card-section>
 
       <q-table
@@ -42,98 +69,205 @@
       >
         <template v-slot:body-cell-isIdempotent="props">
           <q-td :props="props">
-            <q-chip :color="props.value === 'Sim' ? 'green-1' : 'grey-2'" :text-color="props.value === 'Sim' ? 'green-9' : 'grey-7'" dense label>
-              {{ props.value }}
-            </q-chip>
-          </q-td>
-        </template>
-        
-        <template v-slot:body-cell-isAsync="props">
-          <q-td :props="props">
-            <q-chip :color="props.value === 'Sim' ? 'green-1' : 'grey-2'" :text-color="props.value === 'Sim' ? 'green-9' : 'grey-7'" dense label>
+            <q-chip
+              :color="props.value === 'Sim' ? 'green-1' : 'grey-2'"
+              :text-color="props.value === 'Sim' ? 'green-9' : 'grey-7'"
+              dense
+              label
+            >
               {{ props.value }}
             </q-chip>
           </q-td>
         </template>
 
+        <template v-slot:body-cell-isAsync="props">
+          <q-td :props="props">
+            <q-chip
+              :color="props.value === 'Sim' ? 'green-1' : 'grey-2'"
+              :text-color="props.value === 'Sim' ? 'green-9' : 'grey-7'"
+              dense
+              label
+            >
+              {{ props.value }}
+            </q-chip>
+          </q-td>
+        </template>
       </q-table>
     </q-card>
   </q-page>
 </template>
 
 <script setup>
-import { ref } from 'vue';
-import jsYaml from 'js-yaml';
-import $RefParser from '@apidevtools/json-schema-ref-parser';
-import { exportFile, useQuasar } from 'quasar';
-import { Buffer } from 'buffer';
+import { ref } from "vue";
+import jsYaml from "js-yaml";
+import $RefParser from "@apidevtools/json-schema-ref-parser";
+import { exportFile, useQuasar } from "quasar";
+import { Buffer } from "buffer";
 
 window.Buffer = window.Buffer || Buffer;
 const $q = useQuasar();
 
 const ymlFile = ref(null);
+const ymlUrl = ref("");
+const isLoadingUrl = ref(false);
 const metrics = ref([]);
 
 const columns = [
-  { name: 'path', label: 'Endpoint', field: 'path', align: 'left' },
-  { name: 'method', label: 'Metódo', field: 'method', align: 'center' },
-  { name: 'isIdempotent', label: 'Idempotency', field: 'isIdempotent', align: 'center' },
-  { name: 'isAsync', label: 'Async', field: 'isAsync', align: 'center' },
-  { name: 'reqFields', label: 'Requisição - Número de Campos', field: 'reqFields', align: 'center' },
-  { name: 'reqDepth', label: 'Requisição - Número de Níveis da Estrutura de Dados', field: 'reqDepth', align: 'center' },
-  { name: 'reqRest', label: 'Requisição - Número de campos condicionais', field: 'reqRest', align: 'center' },
-  { name: 'resFields', label: 'Resposta - Número de Campos', field: 'resFields', align: 'center' },
-  { name: 'resDepth', label: 'Resposta - Número de Níveis da Estrutura de Dados', field: 'resDepth', align: 'center' },
-  { name: 'resRest', label: 'Resposta - Número de campos condicionais', field: 'resRest', align: 'center' }
+  { name: "path", label: "Endpoint", field: "path", align: "left" },
+  { name: "method", label: "Método", field: "method", align: "center" },
+  {
+    name: "isIdempotent",
+    label: "Idempotency",
+    field: "isIdempotent",
+    align: "center",
+  },
+  { name: "isAsync", label: "Async", field: "isAsync", align: "center" },
+  {
+    name: "reqFields",
+    label: "Requisição - Número de Campos",
+    field: "reqFields",
+    align: "center",
+  },
+  {
+    name: "reqDepth",
+    label: "Requisição - Número de Níveis da Estrutura de Dados",
+    field: "reqDepth",
+    align: "center",
+  },
+  {
+    name: "reqRest",
+    label: "Requisição - Número de campos condicionais",
+    field: "reqRest",
+    align: "center",
+  },
+  {
+    name: "resFields",
+    label: "Resposta - Número de Campos",
+    field: "resFields",
+    align: "center",
+  },
+  {
+    name: "resDepth",
+    label: "Resposta - Número de Níveis da Estrutura de Dados",
+    field: "resDepth",
+    align: "center",
+  },
+  {
+    name: "resRest",
+    label: "Resposta - Número de campos condicionais",
+    field: "resRest",
+    align: "center",
+  },
 ];
 
 function wrapCsvValue(val) {
-  let formatted = val !== void 0 && val !== null ? String(val) : '';
+  let formatted = val !== void 0 && val !== null ? String(val) : "";
   formatted = formatted.split('"').join('""');
   return `"${formatted}"`;
 }
 
 const exportCSV = () => {
-  const content = [columns.map(col => wrapCsvValue(col.label))].concat(
-    metrics.value.map(row => columns.map(col => wrapCsvValue(
-      typeof col.field === 'function' ? col.field(row) : row[col.field === void 0 ? col.name : col.field]
-    )).join(','))
-  ).join('\r\n');
+  const content = [columns.map((col) => wrapCsvValue(col.label))]
+    .concat(
+      metrics.value.map((row) =>
+        columns
+          .map((col) =>
+            wrapCsvValue(
+              typeof col.field === "function"
+                ? col.field(row)
+                : row[col.field === void 0 ? col.name : col.field],
+            ),
+          )
+          .join(","),
+      ),
+    )
+    .join("\r\n");
 
-  const status = exportFile('api-complexity-metrics.csv', content, 'text/csv');
+  const status = exportFile("api-complexity-metrics.csv", content, "text/csv");
 
   if (status !== true) {
     $q.notify({
-      message: 'Browser denied file download...',
-      color: 'negative',
-      icon: 'warning'
+      message: "Browser denied file download...",
+      color: "negative",
+      icon: "warning",
     });
   }
 };
 
 function walkSchema(schema, depth = 0) {
-  if (!schema || typeof schema !== 'object') return { count: 0, maxDepth: depth, restCount: 0 };
-  let count = 0, maxSubDepth = depth, restCount = 0;
+  if (!schema || typeof schema !== "object")
+    return { count: 0, maxDepth: depth, restCount: 0 };
+  let count = 0,
+    maxSubDepth = depth,
+    restCount = 0;
 
-  if (schema.description && (schema.description.includes('[Restrição]') || schema.description.includes('[RESTRIÇÃO]'))) {
+  if (
+    schema.description &&
+    (schema.description.includes("[Restrição]") ||
+      schema.description.includes("[RESTRIÇÃO]"))
+  ) {
     restCount++;
   }
 
   if (schema.properties) {
     const props = Object.keys(schema.properties);
     count += props.length;
-    props.forEach(key => {
+    props.forEach((key) => {
       const sub = walkSchema(schema.properties[key], depth + 1);
-      count += sub.count; restCount += sub.restCount;
+      count += sub.count;
+      restCount += sub.restCount;
       if (sub.maxDepth > maxSubDepth) maxSubDepth = sub.maxDepth;
     });
   } else if (schema.items) {
     const sub = walkSchema(schema.items, depth + 1);
-    count += sub.count; restCount += sub.restCount;
+    count += sub.count;
+    restCount += sub.restCount;
     if (sub.maxDepth > maxSubDepth) maxSubDepth = sub.maxDepth;
   }
   return { count, maxDepth: maxSubDepth, restCount };
 }
+
+const loadFromUrl = async () => {
+  if (!ymlUrl.value) return;
+
+  isLoadingUrl.value = true;
+  try {
+    // Tenta carregar diretamente primeiro
+    let response;
+    try {
+      response = await fetch(ymlUrl.value);
+    } catch (corsError) {
+      // Se falhar por CORS, usa um proxy CORS
+      const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(ymlUrl.value)}`;
+      response = await fetch(proxyUrl);
+    }
+
+    if (!response.ok) throw new Error("Erro ao baixar arquivo");
+
+    const blob = await response.blob();
+    const file = new File([blob], "openapi.yml", {
+      type: "application/x-yaml",
+    });
+
+    // Reutiliza a função de processamento de arquivo
+    await processFile(file);
+
+    $q.notify({
+      message: "Arquivo carregado com sucesso!",
+      color: "positive",
+      icon: "check_circle",
+    });
+  } catch (err) {
+    console.error("URL Load Error:", err);
+    $q.notify({
+      message: "Erro ao carregar URL: " + err.message,
+      color: "negative",
+      icon: "error",
+    });
+  } finally {
+    isLoadingUrl.value = false;
+  }
+};
 
 const processFile = async (file) => {
   if (!file) return;
@@ -141,33 +275,59 @@ const processFile = async (file) => {
   reader.onload = async (e) => {
     try {
       const rawYaml = e.target.result;
-      const api = await $RefParser.dereference(jsYaml.load(rawYaml));
-      const results = [];
-      let synTotal = 0, semTotal = 0;
-
-      for (const [path, methods] of Object.entries(api.paths)) {
-        for (const [method, op] of Object.entries(methods)) {
-          const hasIdempotency = op.parameters?.some(p => p.name === 'x-idempotency-key') ? 'Sim' : 'Não';
-          const isAsync = op.responses?.['202'] ? 'Sim' : 'Não';
-
-          
-          const reqSchema = op.requestBody?.content?.['application/jwt']?.schema || op.requestBody?.content?.['application/json']?.schema;
-          const reqMetrics = walkSchema(reqSchema);
-          const successCode = Object.keys(op.responses).find(c => c.startsWith('2'));
-          const resSchema = op.responses[successCode]?.content?.['application/jwt']?.schema || op.responses[successCode]?.content?.['application/json']?.schema;
-          const resMetrics = walkSchema(resSchema);
-
-          results.push({
-            id: `${path}-${method}`, path, method: method.toUpperCase(),
-            isIdempotent: hasIdempotency, isAsync: isAsync,
-            reqFields: reqMetrics.count, reqDepth: reqSchema ? reqMetrics.maxDepth : 0, reqRest: reqMetrics.restCount,
-            resFields: resMetrics.count, resDepth: resSchema ? resMetrics.maxDepth : 0, resRest: resMetrics.restCount
-          });
-        }
-      }
-      metrics.value = results;
-    } catch (err) { console.error("Analysis Error:", err); }
+      await analyzeYaml(rawYaml);
+    } catch (err) {
+      console.error("Analysis Error:", err);
+      $q.notify({
+        message: "Erro ao processar arquivo: " + err.message,
+        color: "negative",
+        icon: "error",
+      });
+    }
   };
   reader.readAsText(file);
+};
+
+const analyzeYaml = async (rawYaml) => {
+  const api = await $RefParser.dereference(jsYaml.load(rawYaml));
+  const results = [];
+
+  for (const [path, methods] of Object.entries(api.paths)) {
+    for (const [method, op] of Object.entries(methods)) {
+      const hasIdempotency = op.parameters?.some(
+        (p) => p.name === "x-idempotency-key",
+      )
+        ? "Sim"
+        : "Não";
+      const isAsync = op.responses?.["202"] ? "Sim" : "Não";
+
+      const reqSchema =
+        op.requestBody?.content?.["application/jwt"]?.schema ||
+        op.requestBody?.content?.["application/json"]?.schema;
+      const reqMetrics = walkSchema(reqSchema);
+      const successCode = Object.keys(op.responses).find((c) =>
+        c.startsWith("2"),
+      );
+      const resSchema =
+        op.responses[successCode]?.content?.["application/jwt"]?.schema ||
+        op.responses[successCode]?.content?.["application/json"]?.schema;
+      const resMetrics = walkSchema(resSchema);
+
+      results.push({
+        id: `${path}-${method}`,
+        path,
+        method: method.toUpperCase(),
+        isIdempotent: hasIdempotency,
+        isAsync: isAsync,
+        reqFields: reqMetrics.count,
+        reqDepth: reqSchema ? reqMetrics.maxDepth : 0,
+        reqRest: reqMetrics.restCount,
+        resFields: resMetrics.count,
+        resDepth: resSchema ? resMetrics.maxDepth : 0,
+        resRest: resMetrics.restCount,
+      });
+    }
+  }
+  metrics.value = results;
 };
 </script>
